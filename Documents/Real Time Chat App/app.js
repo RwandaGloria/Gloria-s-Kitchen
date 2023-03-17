@@ -44,7 +44,7 @@ io.on('connection', function(socket) {
         
         const result = await controllers.checkInput(data)
 
-        console.log(result)
+        // console.log(result)
         socket.emit('input', result);
         // socket.emit('response_msg_1', "☝️Enter in the numbers to order any of the dishes and the amount you would like for an item like this, '1 3' or '2, 4' --> 4 plates of Ewagoyin beans")
     })
