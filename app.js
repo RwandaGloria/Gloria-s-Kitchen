@@ -16,6 +16,10 @@ const uuid = require('uuid');
 const req = require('express/lib/request');
 const deviceId = uuid.v4();
 
+
+app.use((err, req, res, next) => {
+  console.log(err.stack);
+});
 app.use(express.json())
 app.use(router)
 app.use(cookieParser())
