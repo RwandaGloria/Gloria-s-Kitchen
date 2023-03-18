@@ -13,6 +13,7 @@ let dishInformation = []
 let total_price = 0
 let orderBreakDown = '';
 let order_Arr = [];
+let order_ids = [];
 let id = 0;
 let dishInfo;
 let sequenceIndex = 0;
@@ -21,6 +22,11 @@ if(session.deviceId == null) {
     session.deviceId = deviceId;
 } 
 
+
+function setRequest(request) {
+    req = request;
+    return req
+}
 async function getAllDishes() {
 
     if(session.deviceId) {
@@ -61,7 +67,19 @@ async function convertInput(string){
 }
 
 
-async function checkInput(data){
+async function checkInput(data, req){
+
+
+    const findUser = await db.db.users.findOne({where: {user_id: session.deviceId}});
+    if(findUser == null ) {
+
+        const newUser = await db.db.users.create({
+
+            user_id: session.deviceId,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        })
+    }
 
     const dataToArr = data.split('');
    
@@ -72,6 +90,8 @@ async function checkInput(data){
     console.log(order_Arr)
     if(data ==='1') {
      
+        order_Arr = [];
+        dishInformation = []
         sequenceIndex+=1
         console.log(sequenceIndex)
         return await getAllDishes() + `Enter the item number and the quantity, for example "1 3" `;
@@ -90,16 +110,20 @@ console.log(data);
     }
      if (data == "99"){
 
-       createOrder()
-        return "Order placed"
+      return createOrder()
+  
     }
     else if (data == "97") {
 
+        if(order_Arr.length == 0) {
+            return "No current order placed. Press 1 to get started with placing orders"
+        }
+        return getAllOrderItems()
     }
     else if(data == "98"){
 
         // if(session.dde)
-      return checkOrderHistory(data)
+      return checkOrderHistory(data, req)
     }
     else if (data == "0"){
 
@@ -135,7 +159,7 @@ async function getAllOrderItems() {
 const sum_total = dishPrice * dishQty;
 
 total_price +=sum_total
-dishInfo = [findDish.dish_name,  dishQty, sum_total];
+dishInfo = [findDish.dish_name,  `    ${dishQty}`, `  price : ${sum_total}`];
 
 
     }
@@ -149,24 +173,23 @@ async function createOrder() {
     //put in database. 
 //get the order info. 
 
-const newUser = await db.db.users.create({
+if(order_Arr.length === 0) {
 
-    user_id: session.deviceId,
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-})
-
+    return "Select your items first before placing an order. Click 1 to get started."
+}
 const order = await db.db.orders.create({
 
     status: 'ordered',
     date: 12,
     total_price: 0,
     updatedAt: Date.now, 
-    userUserId: newUser.user_id
+    userUserId: session.deviceId
 
 });
 
 id = order.order_id;
+order_ids.push(id);
+session.orderIDs = order_ids
 console.log(order.order_id)
 
 for(let i = 0; i< order_Arr.length; i++){
@@ -181,8 +204,9 @@ for(let i = 0; i< order_Arr.length; i++){
     })
 
     
-
     console.log("order succesful!")
+    return "Order Placed"
+
 }
 
 const updateOrderPrice = await db.db.orders.update({ total_price : total_price}, {where: {order_id : id}});
@@ -192,17 +216,18 @@ const updateOrderPrice = await db.db.orders.update({ total_price : total_price},
 }
 
 
+
 async function cancelOrders() 
 {
     //get the order ID. and it and upate it. 
-    
+    order_Arr = []
     console.log(order_Arr);
     console.log(id);
     if(order_Arr.length === 0 && (id === 0)) { return "Place an order first!"}
 
     if(order_Arr.length > 0 && (id == 0)){
 
-        order_Arr = []
+       
         return "Order Now Cancelled. If you would like to order again. Press 1"
     }
     const newStatus = "cancelled"
@@ -211,35 +236,62 @@ async function cancelOrders()
     return `Your current order  has been cancelled`
 }
 
-async function checkOrderHistory(data) {
+async function checkCurrentOrder() {
 
-    try{
-    if((session.deviceId == null)) { return "Nothing to see. Press 1 to order now"}
-    const deviceId = session.deviceId;
-
- 
-    //find the orders with unique id and send back. 
-    const findOrder =await db.db.orders.findAll({where: { userUserId : deviceId}}
-        )
-   
-        if( findOrder == null) {
-            return "No orders yet. Press 1 to order now. "
-        }
-
-        console.log('FindOrder is', findOrder)
-     
-    const orderItems = await db.db.order_items.findAll({
-        where: {
-          order_id: findOrder.dataValues.order_id
-        }
-      });
-      console.log("orderItems is ", orderItems)
-      return orderItems
     
+}
 
-    } catch(err) {
-        return err
-    }
+async function checkOrderHistory(data, req) {
+
+    let deviceId = session.deviceId
+  
+        const findCustomer = await db.db.users.findOne({where: {user_id : deviceId}});
+    
+        if(findCustomer == null ){
+            return "No orders placed. press 1 to place an order"
+        }
+
+        const findOrder =await db.db.orders.findAll({where: { userUserId : findCustomer.user_id}}
+            )
+       
+            if( findOrder.length === 0) {
+                return "No orders yet. Press 1 to order now. "
+            }
+            //Get all order items from findOrder. 
+// console.log(findOrder)
+
+const orderIDs = session.orderIDs;
+            let orderDetails = []
+
+            for (let i = 0; i< order_ids.length; i++) {
+
+                console.log(i)
+                console.log(orderIDs)
+                const orderItems = await db.db.order_items.findAll({
+                    where: {
+                      order_id: orderIDs[i]
+                    }
+                  });
+       console.log(orderItems);
+                  const orderStock = orderItems[0].dataValues;
+                  console.log(orderStock);
+                  //print all order items with total price to an empty string. 
+
+                  const findDishById= await db.db.dishes.findOne({where: {dish_id : orderItems[0].dataValues.dish_id}})
+
+                  
+                  const dishName = findDishById.dish_name
+                  const dishqty = orderStock.qty
+
+                  const getOrderById = await db.db.orders.findOne({where: {order_id : orderIDs[i]}})
+
+                  const getPrice = getOrderById.total_price;
+
+                  orderDetails.push([dishName, dishqty])
+                  console.log(orderItems);
+            }
+            return `Here are your previous orders: <br><br>` + orderDetails + `<br> Total Price is ${total_price}`
+           
     
 }
 

@@ -13,6 +13,7 @@ const router = require('./routes');
 
 const controllers = require('./controllers/controllers');
 const uuid = require('uuid');
+const req = require('express/lib/request');
 const deviceId = uuid.v4();
 
 app.use(express.json())
@@ -35,6 +36,7 @@ app.use(sessions({
 
 app.use((req, res, next) => {
 
+    controllers.setRequest(req);
     console.log(deviceId, 'is deviceId')
     req.session.deviceId = deviceId;
     console.log(req.session.deviceId, 'is session ID')
@@ -50,7 +52,7 @@ io.on('connection', function(socket) {
     socket.on('incoming_data', async (data) => { 
         
         
-        const result = await controllers.checkInput(data)
+        const result = await controllers.checkInput(data, req)
 
         // console.log(result)
         socket.emit('input', result);
