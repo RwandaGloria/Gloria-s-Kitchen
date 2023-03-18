@@ -13,3 +13,6 @@ Insert In the following data.
 * SECRETKEY=xxxx
 * SQL_HOST=xxxx
 
+This app uses database to store restaurant available dishes to be propagated to the user whenever the restaurant dishes are updated. 
+
+
