@@ -12,6 +12,8 @@ const sessions = require('express-session');
 const router = require('./routes');
 
 const controllers = require('./controllers/controllers');
+const uuid = require('uuid');
+const deviceId = uuid.v4();
 
 app.use(express.json())
 app.use(router)
@@ -31,7 +33,13 @@ app.use(sessions({
     resave: false 
 }));
 
+app.use((req, res, next) => {
 
+    console.log(deviceId, 'is deviceId')
+    req.session.deviceId = deviceId;
+    console.log(req.session.deviceId, 'is session ID')
+    next();
+});
 io.on('connection', function(socket) {
     console.log('A user connected');
  
